@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: envoy
+spec:
+ replicas: 2
+ selector:
+   matchLabels:
+     app: envoy
+ template:
+   metadata:
+     labels:
+       app: envoy
+   spec:
+      volumes:
+        - name: envoy
+          configMap:
+            name: envoy-cm
+      containers:
+        - name: envoy
+          image: envoyproxy/envoy:v1.24.0@sha256:9ae6b26d14ce92f67cd500cb3e5a89aa3351e013140f8b06c36619d929687ce0
+          command:
+            - "/usr/local/bin/envoy"
+          args:
+            - "--config-path /etc/envoy/envoy.yaml"
+          resources:
+           limits:
+            memory: 512Mi
+          ports:
+            - containerPort: 8080
+              name: app
+            - containerPort: 8001
+              name: envoy-admin
+          volumeMounts:
+            - name: envoy
+              mountPath: /etc/envoy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    cloud.google.com/neg: '{"ingress":true}'
+  name: envoy-svc
+spec:
+ ports:
+ - name: service
+   port: 8080
+   protocol: TCP
+ selector:
+   app: envoy
+ type: LoadBalancer
